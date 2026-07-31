@@ -7,6 +7,8 @@ from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from training.amp import AutomaticMixedPrecision
+
 
 @dataclass(frozen=True)
 class EpochMetrics:
@@ -29,12 +31,18 @@ def train_one_epoch(
     loss_function: nn.Module,
     optimizer: Optimizer,
     device: torch.device,
+    mixed_precision: AutomaticMixedPrecision,
+    gradient_clip_norm: float | None,
 ) -> EpochMetrics:
     model.train()
 
     total_loss = 0.0
     total_correct_predictions = 0
     total_examples = 0
+
+    trainable_parameters = [
+        parameter for parameter in model.parameters() if parameter.requires_grad
+    ]
 
     for images, labels in data_loader:
         images = images.to(
@@ -49,18 +57,26 @@ def train_one_epoch(
 
         optimizer.zero_grad(set_to_none=True)
 
-        logits = model(images)
-        loss = loss_function(logits, labels)
+        with mixed_precision.autocast():
+            logits = model(images)
+            loss = loss_function(
+                logits,
+                labels,
+            )
 
-        loss.backward()
-        optimizer.step()
+        mixed_precision.backward_and_step(
+            loss=loss,
+            optimizer=optimizer,
+            parameters=trainable_parameters,
+            gradient_clip_norm=gradient_clip_norm,
+        )
 
         batch_size = images.shape[0]
 
-        total_loss += loss.item() * batch_size
+        total_loss += float(loss.detach().item()) * batch_size
 
         total_correct_predictions += calculate_number_of_correct_predictions(
-            logits=logits,
+            logits=logits.detach(),
             labels=labels,
         )
 
@@ -69,13 +85,9 @@ def train_one_epoch(
     if total_examples == 0:
         raise RuntimeError("The training DataLoader produced no examples")
 
-    average_loss = total_loss / total_examples
-
-    accuracy = total_correct_predictions / total_examples
-
     return EpochMetrics(
-        loss=average_loss,
-        accuracy=accuracy,
+        loss=total_loss / total_examples,
+        accuracy=(total_correct_predictions / total_examples),
     )
 
 
@@ -85,6 +97,7 @@ def validate_one_epoch(
     data_loader: DataLoader,
     loss_function: nn.Module,
     device: torch.device,
+    mixed_precision: AutomaticMixedPrecision,
 ) -> EpochMetrics:
     model.eval()
 
@@ -103,12 +116,16 @@ def validate_one_epoch(
             non_blocking=True,
         )
 
-        logits = model(images)
-        loss = loss_function(logits, labels)
+        with mixed_precision.autocast():
+            logits = model(images)
+            loss = loss_function(
+                logits,
+                labels,
+            )
 
         batch_size = images.shape[0]
 
-        total_loss += loss.item() * batch_size
+        total_loss += float(loss.item()) * batch_size
 
         total_correct_predictions += calculate_number_of_correct_predictions(
             logits=logits,
@@ -120,11 +137,7 @@ def validate_one_epoch(
     if total_examples == 0:
         raise RuntimeError("The validation DataLoader produced no examples")
 
-    average_loss = total_loss / total_examples
-
-    accuracy = total_correct_predictions / total_examples
-
     return EpochMetrics(
-        loss=average_loss,
-        accuracy=accuracy,
+        loss=total_loss / total_examples,
+        accuracy=(total_correct_predictions / total_examples),
     )
