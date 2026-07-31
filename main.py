@@ -1,73 +1,116 @@
 from __future__ import annotations
 
-import torch
+import random
 
+import torch
+from torch import nn
+from torch.optim import AdamW
+
+from training import (
+    TrainingConfig,
+    create_data_loaders,
+    train_one_epoch,
+    validate_one_epoch,
+)
 from vit import VisionTransformer
 
 
-def print_model_summary(model: VisionTransformer) -> None:
-    total_parameters = sum(parameter.numel() for parameter in model.parameters())
+def set_random_seed(seed: int) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
 
-    trainable_parameters = sum(
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def create_model(
+    config: TrainingConfig,
+) -> VisionTransformer:
+    return VisionTransformer(
+        image_size=config.image_size,
+        patch_size=config.patch_size,
+        in_channels=config.in_channels,
+        number_of_classes=config.number_of_classes,
+        embedding_dim=config.embedding_dim,
+        number_of_layers=config.number_of_layers,
+        number_of_heads=config.number_of_heads,
+        mlp_hidden_dim=config.mlp_hidden_dim,
+        embedding_dropout=config.embedding_dropout,
+        attention_dropout=config.attention_dropout,
+        projection_dropout=config.projection_dropout,
+        mlp_dropout=config.mlp_dropout,
+    )
+
+
+def count_parameters(model: nn.Module) -> int:
+    return sum(
         parameter.numel() for parameter in model.parameters() if parameter.requires_grad
     )
 
-    print("=" * 80)
-    print("Vision Transformer")
-    print("=" * 80)
-    print(model)
-    print()
-
-    print(f"Total Parameters     : {total_parameters:,}")
-    print(f"Trainable Parameters : {trainable_parameters:,}")
-    print("=" * 80)
-
-
-def run_forward_pass(model: VisionTransformer) -> None:
-    images = torch.randn(8, 3, 32, 32)
-
-    logits, attention_maps = model(
-        images,
-        return_attention=True,
-    )
-
-    print()
-    print("=" * 80)
-    print("Forward Pass")
-    print("=" * 80)
-
-    print(f"Input Images      : {images.shape}")
-    print(f"Output Logits     : {logits.shape}")
-    print(f"Attention Maps    : {attention_maps.shape}")
-
-    print()
-    print("Per Layer Attention Shape")
-
-    for layer_index, layer_attention in enumerate(attention_maps):
-        print(f"Layer {layer_index + 1}: {layer_attention.shape}")
-
 
 def main() -> None:
-    torch.manual_seed(42)
+    config = TrainingConfig()
 
-    model = VisionTransformer(
-        image_size=32,
-        patch_size=4,
-        in_channels=3,
-        number_of_classes=10,
-        embedding_dim=192,
-        number_of_layers=6,
-        number_of_heads=3,
-        mlp_hidden_dim=768,
-        embedding_dropout=0.1,
-        attention_dropout=0.1,
-        projection_dropout=0.1,
-        mlp_dropout=0.1,
+    set_random_seed(config.random_seed)
+
+    print("=" * 72)
+    print("Vision Transformer Training")
+    print("=" * 72)
+    print(f"Device: {config.device}")
+    print(f"Epochs: {config.number_of_epochs}")
+    print(f"Batch size: {config.batch_size}")
+    print(f"Learning rate: {config.learning_rate}")
+    print()
+
+    data_loaders = create_data_loaders(config)
+
+    model = create_model(config)
+    model = model.to(config.device)
+
+    print(f"Trainable parameters: {count_parameters(model):,}")
+    print()
+
+    loss_function = nn.CrossEntropyLoss()
+
+    optimizer = AdamW(
+        params=model.parameters(),
+        lr=config.learning_rate,
+        weight_decay=config.weight_decay,
     )
 
-    print_model_summary(model)
+    for epoch in range(
+        1,
+        config.number_of_epochs + 1,
+    ):
+        training_metrics = train_one_epoch(
+            model=model,
+            data_loader=data_loaders.train,
+            loss_function=loss_function,
+            optimizer=optimizer,
+            device=config.device,
+        )
 
-    run_forward_pass(model)
+        validation_metrics = validate_one_epoch(
+            model=model,
+            data_loader=data_loaders.validation,
+            loss_function=loss_function,
+            device=config.device,
+        )
+
+        print(
+            f"Epoch [{epoch:03d}/{config.number_of_epochs:03d}] "
+            f"| "
+            f"Train Loss: {training_metrics.loss:.4f} "
+            f"| "
+            f"Train Accuracy: "
+            f"{training_metrics.accuracy * 100:.2f}% "
+            f"| "
+            f"Validation Loss: "
+            f"{validation_metrics.loss:.4f} "
+            f"| "
+            f"Validation Accuracy: "
+            f"{validation_metrics.accuracy * 100:.2f}%"
+        )
 
 
 if __name__ == "__main__":
