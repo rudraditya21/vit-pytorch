@@ -8,7 +8,6 @@ from typing import Any
 import torch
 from torch import nn
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 
 from training.amp import AutomaticMixedPrecision
 
@@ -50,7 +49,7 @@ class CheckpointManager:
         completed_epoch: int,
         model: nn.Module,
         optimizer: Optimizer,
-        scheduler: LRScheduler,
+        scheduler: Any,
         mixed_precision: AutomaticMixedPrecision,
         best_validation_accuracy: float,
         is_best: bool,
@@ -89,7 +88,7 @@ class CheckpointManager:
         checkpoint_path: Path,
         model: nn.Module,
         optimizer: Optimizer,
-        scheduler: LRScheduler,
+        scheduler: Any,
         mixed_precision: AutomaticMixedPrecision,
         device: torch.device,
     ) -> CheckpointState:
@@ -132,7 +131,7 @@ class CheckpointManager:
         completed_epoch: int,
         model: nn.Module,
         optimizer: Optimizer,
-        scheduler: LRScheduler,
+        scheduler: Any,
         mixed_precision: AutomaticMixedPrecision,
         best_validation_accuracy: float,
     ) -> dict[str, Any]:

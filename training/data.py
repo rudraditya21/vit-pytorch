@@ -15,8 +15,11 @@ class DataLoaders:
 
 
 def create_data_loaders(config: TrainingConfig) -> DataLoaders:
+    resize = transforms.Resize((config.image_size, config.image_size))
+
     train_transform = transforms.Compose(
         [
+            resize,
             transforms.RandomCrop(
                 size=config.image_size,
                 padding=4,
@@ -32,6 +35,7 @@ def create_data_loaders(config: TrainingConfig) -> DataLoaders:
 
     validation_transform = transforms.Compose(
         [
+            resize,
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=(0.4914, 0.4822, 0.4465),

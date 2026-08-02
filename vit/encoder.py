@@ -113,16 +113,16 @@ class TransformerEncoder(nn.Module):
             raise ValueError("embedding_dim must be greater than zero")
 
         if number_of_layers <= 0:
-            raise ValueError("embedding_dim must be greater than zero")
+            raise ValueError("number_of_layers must be greater than zero")
 
         if number_of_heads <= 0:
-            raise ValueError("embedding_dim must be greater than zero")
+            raise ValueError("number_of_heads must be greater than zero")
 
         if mlp_hidden_dim <= 0:
-            raise ValueError("embedding_dim must be greater than zero")
+            raise ValueError("mlp_hidden_dim must be greater than zero")
 
         if layer_norm_epsilon <= 0.0:
-            raise ValueError("embedding_dim must be greater than zero")
+            raise ValueError("layer_norm_epsilon must be greater than zero")
 
         self.embedding_dim = embedding_dim
         self.number_of_layers = number_of_layers
@@ -190,6 +190,6 @@ class TransformerEncoder(nn.Module):
         if tokens.shape[-1] != self.embedding_dim:
             raise ValueError(
                 f"Expected embedding dimension "
-                f"{self.embedding_dim}"
+                f"{self.embedding_dim}, "
                 f"received {tokens.shape[-1]}"
             )

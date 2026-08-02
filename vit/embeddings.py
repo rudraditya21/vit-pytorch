@@ -18,8 +18,8 @@ class PatchEmbedding(nn.Module):
 
         if image_size % patch_size != 0:
             raise ValueError(
-                f"image_size ({image_size}) must be divisible by ",
-                f"patch_size ({patch_size})",
+                f"image_size ({image_size}) must be divisible by "
+                f"patch_size ({patch_size})"
             )
 
         if in_channels <= 0:

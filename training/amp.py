@@ -7,7 +7,6 @@ from typing import Any
 import torch
 from torch import Tensor
 from torch.optim import Optimizer
-from torch.cuda.amp import GradScaler
 
 
 class AutomaticMixedPrecision:
@@ -19,10 +18,15 @@ class AutomaticMixedPrecision:
         self.device = device
         self.enabled = enabled and device.type == "cuda"
 
-        self.scaler = GradScaler(
-            "cuda",
-            enabled=self.enabled,
-        )
+        if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
+            self.scaler = torch.amp.GradScaler(
+                device="cuda",
+                enabled=self.enabled,
+            )
+        else:
+            self.scaler = torch.cuda.amp.GradScaler(
+                enabled=self.enabled,
+            )
 
     def autocast(
         self,

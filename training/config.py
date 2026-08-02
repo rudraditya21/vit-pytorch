@@ -64,6 +64,27 @@ class TrainingConfig:
         return torch.device("cpu")
 
     def validate(self) -> None:
+        if self.image_size <= 0:
+            raise ValueError("image_size must be greater than zero")
+
+        if self.patch_size <= 0:
+            raise ValueError("patch_size must be greater than zero")
+
+        if self.image_size % self.patch_size != 0:
+            raise ValueError("image_size must be divisible by patch_size")
+
+        if self.in_channels != 3:
+            raise ValueError("CIFAR-10 training requires in_channels to be 3")
+
+        if self.number_of_classes != 10:
+            raise ValueError("CIFAR-10 training requires number_of_classes to be 10")
+
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be greater than zero")
+
+        if self.number_of_workers < 0:
+            raise ValueError("number_of_workers cannot be negative")
+
         if self.number_of_epochs <= 0:
             raise ValueError("number_of_epochs must be greater than zero")
 

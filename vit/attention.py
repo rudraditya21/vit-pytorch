@@ -93,8 +93,8 @@ class MultiHeadSelfAttention(nn.Module):
         attention_scores = queries @ keys.transpose(-2, -1)
         attention_scores = attention_scores * self.scale
 
-        attention_weights = attention_scores.softmax(dim=-1)
-        attention_weights = self.attention_dropout(attention_weights)
+        attention_probabilities = attention_scores.softmax(dim=-1)
+        attention_weights = self.attention_dropout(attention_probabilities)
 
         attended_values = attention_weights @ values
         attended_values = attended_values.transpose(1, 2)
@@ -108,7 +108,7 @@ class MultiHeadSelfAttention(nn.Module):
         output = self.projection_dropout(output)
 
         if return_attention:
-            return output, attention_weights
+            return output, attention_probabilities
 
         return output
 
